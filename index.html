@@ -15,6 +15,7 @@
     :root {
       color-scheme: dark;
       --meta-blue: #1877f2;
+      --green-aqua: #00fee5;
       --white: #ffffff;
       --muted: #94a3b8;
       --panel: rgba(8, 14, 28, 0.75);
@@ -105,10 +106,11 @@
     .brand-title-dept {
       font-weight: 100;
       font-style: italic;
-      font-size: 0.35em;
-      color: rgba(255, 255, 255, 0.75);
+      font-size: 0.28em;
+      color: rgba(255, 255, 255, 0.72);
       text-transform: none;
-      margin-left: 6px;
+      letter-spacing: 0.2em;
+      margin-left: 8px;
     }
 
     main { position: relative; }
@@ -163,7 +165,13 @@
       white-space: nowrap;
     }
 
-    .upload-button {
+    /* Trafficking Button - Green Aqua Outline & Icon */
+    .upload-button.traffic {
+      border: 1.5px solid var(--green-aqua);
+      color: var(--green-aqua);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -171,18 +179,38 @@
       width: 100%;
       min-height: 74px;
       padding: 16px 20px;
-      border: 1.5px solid var(--meta-blue);
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.35);
-      backdrop-filter: blur(8px);
-      color: var(--meta-blue);
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
       transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
     }
 
-    .upload-button:hover {
+    .upload-button.traffic:hover {
+      background: rgba(0, 254, 229, 0.08);
+      box-shadow: 0 0 28px rgba(0, 254, 229, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .upload-button.meta {
+      border: 1.5px solid var(--meta-blue);
+      color: var(--meta-blue);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 74px;
+      padding: 16px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .upload-button.meta:hover {
       background: rgba(24, 119, 242, 0.08);
       box-shadow: 0 0 28px rgba(24, 119, 242, 0.3);
       transform: translateY(-2px);
@@ -202,7 +230,13 @@
       white-space: nowrap;
     }
 
-    .file-name.has-file {
+    /* Selected File Name Colors */
+    .file-name.has-file#trafficFileName {
+      color: var(--green-aqua);
+      font-weight: 600;
+    }
+
+    .file-name.has-file#metaFileName {
       color: var(--meta-blue);
       font-weight: 600;
     }
@@ -222,8 +256,8 @@
       margin-top: 36px;
       padding: 1.5px;
       border-radius: 10px;
-      background: linear-gradient(90deg, var(--meta-blue), #00f2fe);
-      box-shadow: 0 10px 32px rgba(24, 119, 242, 0.3);
+      background: linear-gradient(90deg, var(--green-aqua), var(--meta-blue));
+      box-shadow: 0 10px 32px rgba(0, 254, 229, 0.25);
     }
 
     .analyze-button {
@@ -273,7 +307,7 @@
       width: 15px;
       height: 15px;
       border: 2px solid rgba(255, 255, 255, 0.2);
-      border-top-color: var(--meta-blue);
+      border-top-color: var(--green-aqua);
       border-radius: 50%;
       animation: spin 720ms linear infinite;
     }
@@ -289,7 +323,7 @@
       width: 34%;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--meta-blue), #00f2fe);
+      background: linear-gradient(90deg, var(--green-aqua), var(--meta-blue));
       animation: progress 1.25s ease-in-out infinite;
     }
 
@@ -348,15 +382,15 @@
       letter-spacing: 0.02em;
     }
 
-    /* Top-Right Accuracy Badge Widget */
+    /* Top-Right Accuracy Badge Widget (For Discrepancies) */
     .score-circle {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 92px;
-      height: 92px;
-      flex: 0 0 92px;
+      width: 88px;
+      height: 88px;
+      flex: 0 0 88px;
       border-radius: 50%;
       background: rgba(8, 14, 28, 0.9);
       border: 3.5px solid var(--danger);
@@ -366,13 +400,9 @@
       padding: 4px;
     }
 
-    .score-circle.is-100 {
-      border-color: var(--success);
-      box-shadow: 0 0 22px rgba(0, 210, 106, 0.35);
-    }
+    .score-circle[hidden] { display: none; }
 
-    .score-circle.is-100 .score-icon { color: var(--success); }
-    .score-circle.is-lower .score-icon { color: var(--danger); }
+    .score-circle .score-icon { color: var(--danger); }
 
     .score-icon {
       display: flex;
@@ -396,11 +426,111 @@
     }
 
     .score-label {
-      font-size: 0.5rem;
+      font-size: 0.52rem;
       font-weight: 700;
       text-transform: uppercase;
       color: var(--muted);
       margin-top: 3px;
+    }
+
+    /* Centered 100% Success Indicator Stage */
+    .success-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 52px 20px;
+      text-align: center;
+    }
+
+    .success-stage[hidden] { display: none; }
+
+    .score-circle-large {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: rgba(8, 14, 28, 0.9);
+      border: 4px solid var(--success);
+      box-shadow: 0 0 36px rgba(0, 210, 106, 0.35);
+      margin-bottom: 20px;
+      padding: 8px;
+    }
+
+    .score-circle-large .score-icon {
+      color: var(--success);
+      margin-bottom: 4px;
+    }
+
+    .score-circle-large .score-icon svg {
+      width: 28px;
+      height: 28px;
+      stroke-width: 2.8;
+    }
+
+    .score-value-large {
+      font-size: 1.55rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      color: var(--white);
+    }
+
+    .score-label-large {
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    .qa-passed-label {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--success);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .success-title {
+      margin: 0 0 6px 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .success-subtitle {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    /* Top Controls Bar for Compact/Expand Button (Next to / Above 1st Campaign) */
+    .results-controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 18px;
+      margin-bottom: 12px;
+    }
+
+    .results-controls[hidden] { display: none; }
+
+    .compact-btn {
+      min-height: 34px;
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .compact-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
     }
 
     .notice {
@@ -419,7 +549,6 @@
     .results-list {
       display: grid;
       gap: 12px;
-      margin-top: 20px;
     }
 
     /* Accordion Structures with Font Weight 500 */
@@ -533,17 +662,6 @@
     }
 
     .value-arrow { color: rgba(255, 255, 255, 0.45); font-size: 0.75rem; }
-
-    .empty-state {
-      padding: 52px 20px;
-      border-top: 1px solid var(--line);
-      text-align: center;
-    }
-
-    .empty-state svg { color: var(--success); }
-
-    .empty-state h2 { margin: 12px 0 5px; font-size: 1.1rem; }
-    .empty-state p { margin: 0; color: var(--muted); font-size: 0.78rem; }
 
     .actions {
       display: flex;
@@ -684,24 +802,43 @@
             </div>
           </div>
 
-          <!-- Top-Right Score Circle Badge -->
+          <!-- Top-Right Score Circle Badge (Visible only when discrepancies exist) -->
           <div class="score-circle" id="scoreCircle">
             <div class="score-icon" id="scoreIcon">
-              <i data-lucide="check-circle-2" aria-hidden="true"></i>
+              <i data-lucide="x-circle" aria-hidden="true"></i>
             </div>
-            <div class="score-value" id="scoreValue">100%</div>
-            <div class="score-label" id="scoreLabel">QA PASSED</div>
+            <div class="score-value" id="scoreValue">0%</div>
+            <div class="score-label" id="scoreLabel">ISSUES</div>
           </div>
         </div>
 
         <p id="analysisNotice" class="notice" hidden></p>
-        <div id="resultsList" class="results-list"></div>
 
-        <div class="actions">
-          <button id="toggleDetailsBtn" class="action-button" type="button">
+        <!-- Centered 100% Accuracy Stage (Visible only when 100% accuracy reached) -->
+        <div id="successStage" class="success-stage" hidden>
+          <div class="score-circle-large">
+            <div class="score-icon">
+              <i data-lucide="check-circle-2" aria-hidden="true"></i>
+            </div>
+            <div class="score-value-large">100%</div>
+            <div class="score-label-large">ACCURACY</div>
+          </div>
+          <div class="qa-passed-label">QA PASSED</div>
+          <h2 class="success-title">No discrepancies detected</h2>
+          <p class="success-subtitle">The compared records passed all Meta QA checks.</p>
+        </div>
+
+        <!-- Top Controls Bar (Visible only when discrepancies exist) -->
+        <div id="resultsControls" class="results-controls" hidden>
+          <button id="toggleDetailsBtn" class="action-button compact-btn" type="button">
             <i data-lucide="minimize-2" aria-hidden="true"></i>
             <span id="toggleDetailsText">Compact</span>
           </button>
+        </div>
+
+        <div id="resultsList" class="results-list"></div>
+
+        <div class="actions">
           <button id="downloadButton" class="action-button" type="button">
             <i data-lucide="download" aria-hidden="true"></i>
             Download
