@@ -38,7 +38,7 @@ window.setFileLabel = function (input, label) {
 
   const REQUIRED_HEADER_GROUPS = [HEADER_ALIASES.campaign, HEADER_ALIASES.adSet, HEADER_ALIASES.ad];
 
-  // Meta Field Definitions (Country/Location and Creative Asset File Name EXCLUDED per request)
+  // Meta Field Definitions (Country/Location and Creative Asset File Name EXCLUDED)
   const FIELD_DEFINITIONS = [
     { id: "campaign", label: "Campaign Name", traffic: ["campaign"], meta: ["campaign"], type: "name" },
     { id: "adSet", label: "Ad Set Name", traffic: ["adSet"], meta: ["adSet"], type: "name" },
@@ -333,7 +333,8 @@ window.setFileLabel = function (input, label) {
     return displayValue(firstMeaningfulValue(row, columnMap[key] || []));
   }
 
-  function splitAdGroups(value) {
+  // Splits multiple values in a single cell (e.g., campaigns or ad sets separated by newlines, pipes, or semicolons)
+  function splitMultiValues(value) {
     if (value === null || value === undefined) return [EMPTY_LABEL];
     const text = String(value).trim();
     if (!text) return [EMPTY_LABEL];
@@ -346,58 +347,86 @@ window.setFileLabel = function (input, label) {
     for (let rowIndex = sheetData.headerIndex + 1; rowIndex < sheetData.rows.length; rowIndex += 1) {
       const row = sheetData.rows[rowIndex];
       if (!row || isRowEmpty(row)) continue;
-      const campaign = recordName(row, columnMap, "campaign");
+      const campaignRaw = firstMeaningfulValue(row, columnMap["campaign"] || []);
       const adSetRaw = firstMeaningfulValue(row, columnMap["adSet"] || []);
       const ad = recordName(row, columnMap, "ad");
-      if (campaign === EMPTY_LABEL && adSetRaw === "" && ad === EMPTY_LABEL) continue;
+      if (campaignRaw === "" && adSetRaw === "" && ad === EMPTY_LABEL) continue;
 
-      const adSets = splitAdGroups(adSetRaw);
-      adSets.forEach(function (adSetSingle) {
-        records.push({
-          row: row,
-          arrayRowIndex: rowIndex,
-          sourceRow0: sheetData.range.s.r + rowIndex,
-          campaign: campaign,
-          adSet: displayValue(adSetSingle),
-          ad: ad
+      const campaigns = splitMultiValues(campaignRaw);
+      const adSets = splitMultiValues(adSetRaw);
+
+      campaigns.forEach(function (campaignSingle) {
+        adSets.forEach(function (adSetSingle) {
+          records.push({
+            row: row,
+            arrayRowIndex: rowIndex,
+            sourceRow0: sheetData.range.s.r + rowIndex,
+            campaign: displayValue(campaignSingle),
+            adSet: displayValue(adSetSingle),
+            ad: ad
+          });
         });
       });
     }
     return records;
   }
 
+  // Multi-pass Ad Matching Engine (Strict Ad Set & Campaign Scope)
   function findBestMetaMatch(trafficRecord, metaRecords, matchedMetaIndices) {
     const tAdRaw = normalizeWhitespace(trafficRecord.ad).toLowerCase();
     const tAdStripped = stripCopyOf(trafficRecord.ad);
     const tSet = normalizeKeyPart(trafficRecord.adSet);
+    const tCamp = normalizeKeyPart(trafficRecord.campaign);
 
-    // Pass 1: Exact Ad Name & Exact Ad Set Name
+    // Pass 1: Exact Ad Name & Exact Ad Set Name & Exact Campaign Name
     for (let idx = 0; idx < metaRecords.length; idx++) {
       if (matchedMetaIndices.has(idx)) continue;
       const m = metaRecords[idx];
       const mAdRaw = normalizeWhitespace(m.ad).toLowerCase();
       const mAdStripped = stripCopyOf(m.ad);
       const mSet = normalizeKeyPart(m.adSet);
+      const mCamp = normalizeKeyPart(m.campaign);
 
-      if ((tAdRaw === mAdRaw || tAdStripped === mAdStripped) && tSet === mSet) {
+      const adMatched = (tAdRaw === mAdRaw || tAdStripped === mAdStripped);
+      if (adMatched && tSet === mSet && tCamp === mCamp) {
         return { match: m, index: idx };
       }
     }
 
-    // Pass 2: Contained Ad Set Name
+    // Pass 2: Exact Ad Name & Exact Ad Set Name & Contained/Fuzzy Campaign Name
     for (let idx = 0; idx < metaRecords.length; idx++) {
       if (matchedMetaIndices.has(idx)) continue;
       const m = metaRecords[idx];
       const mAdRaw = normalizeWhitespace(m.ad).toLowerCase();
       const mAdStripped = stripCopyOf(m.ad);
       const mSet = normalizeKeyPart(m.adSet);
+      const mCamp = normalizeKeyPart(m.campaign);
 
-      if ((tAdRaw === mAdRaw || tAdStripped === mAdStripped) && 
-          (tSet.includes(mSet) || mSet.includes(tSet) || jaroWinkler(tSet, mSet) >= 0.88)) {
+      const adMatched = (tAdRaw === mAdRaw || tAdStripped === mAdStripped);
+      if (adMatched && tSet === mSet && (tCamp.includes(mCamp) || mCamp.includes(tCamp) || jaroWinkler(tCamp, mCamp) >= 0.85)) {
         return { match: m, index: idx };
       }
     }
 
+    // Pass 3: Exact Ad Name & Contained/Fuzzy Ad Set Name & Contained/Fuzzy Campaign Name
+    for (let idx = 0; idx < metaRecords.length; idx++) {
+      if (matchedMetaIndices.has(idx)) continue;
+      const m = metaRecords[idx];
+      const mAdRaw = normalizeWhitespace(m.ad).toLowerCase();
+      const mAdStripped = stripCopyOf(m.ad);
+      const mSet = normalizeKeyPart(m.adSet);
+      const mCamp = normalizeKeyPart(m.campaign);
+
+      const adMatched = (tAdRaw === mAdRaw || tAdStripped === mAdStripped);
+      const setMatched = (tSet === mSet || tSet.includes(mSet) || mSet.includes(tSet) || jaroWinkler(tSet, mSet) >= 0.88);
+      const campMatched = (tCamp === mCamp || tCamp.includes(mCamp) || mCamp.includes(tCamp) || jaroWinkler(tCamp, mCamp) >= 0.85);
+
+      if (adMatched && setMatched && campMatched) {
+        return { match: m, index: idx };
+      }
+    }
+
+    // Strictly isolated - Do NOT cross-match an ad to a completely different Ad Set or Campaign
     return { match: null, index: -1 };
   }
 
