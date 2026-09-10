@@ -1,3 +1,11 @@
+window.setFileLabel = function (input, label) {
+  if (!input || !label) return;
+  const file = input.files && input.files[0];
+  label.textContent = file ? file.name : "No file selected";
+  label.classList.toggle("has-file", Boolean(file));
+  label.title = file ? file.name : "";
+};
+
 (function () {
   "use strict";
 
@@ -6,56 +14,65 @@
   ]);
   const EMPTY_LABEL = "(blank)";
 
+  // Meta Header Aliases
   const HEADER_ALIASES = {
     campaign: ["campaign name", "campaign"],
-    adSet: ["ad set name", "adset name", "ad set"],
+    adSet: ["ad set name", "adset name", "ad set", "ad group name", "ad group"],
     ad: ["ad name", "advertisement name"],
     buildStatus: ["build status", "ad status", "status"],
     metaStatus: ["ad status", "delivery info", "delivery status", "status"],
-    country: ["country", "market"],
-    countries: ["countries", "country", "markets"],
-    creativeLink: ["creative link", "asset link", "creative url"],
-    creativeFile: ["creative file name", "creative filename", "asset file name", "asset filename"],
-    imageFile: ["image file name", "image filename", "asset file name", "asset filename", "creative file name", "creative filename"],
-    bodyPrimary: ["body primary text", "primary text", "body copy"],
-    body: ["body", "primary text"],
-    headline: ["copy headline", "headline"],
+    bodyPrimary: ["body primary text", "primary text", "body copy", "text"],
+    body: ["body", "primary text", "text"],
+    headline: ["copy headline", "headline", "title"],
     title: ["title", "headline"],
-    description: ["copy description", "description"],
+    description: ["copy description", "description", "link description"],
     linkDescription: ["link description", "description"],
     cta: ["call to action", "cta"],
-    baseUrl: ["url without utms included use for meta", "url without utm included use for meta", "url without utms", "destination url", "website url"],
-    link: ["link", "website url", "destination url"],
+    baseUrl: ["url without utms included use for meta", "url without utm included use for meta", "web url", "destination url", "website url"],
+    link: ["link", "website url", "destination url", "web url"],
     utm: ["utm for meta", "utm", "url parameters", "tracking parameters"],
     urlTags: ["url tags", "url parameters", "tracking parameters", "utm"],
     optimizeText: ["optimize text per person", "optimize text"],
-    degreesFreedom: ["degrees of freedom type", "degree of freedom type"],
-    launchDate: ["launch date", "go live date", "start date"],
-    locales: ["locales", "locale", "language", "languages"]
+    degreesFreedom: ["degrees of freedom type", "degree of freedom type"]
   };
 
   const REQUIRED_HEADER_GROUPS = [HEADER_ALIASES.campaign, HEADER_ALIASES.adSet, HEADER_ALIASES.ad];
 
+  // Meta Field Definitions (Country/Location and Creative Asset File Name EXCLUDED per request)
   const FIELD_DEFINITIONS = [
     { id: "campaign", label: "Campaign Name", traffic: ["campaign"], meta: ["campaign"], type: "name" },
     { id: "adSet", label: "Ad Set Name", traffic: ["adSet"], meta: ["adSet"], type: "name" },
     { id: "ad", label: "Ad Name", traffic: ["ad"], meta: ["ad"], type: "name" },
     { id: "status", label: "Build Status / Ad Status", traffic: ["buildStatus"], meta: ["metaStatus"], type: "statusMapping" },
-    { id: "country", label: "Country", traffic: ["country"], meta: ["countries"], type: "country" },
-    { id: "creative", label: "Creative Asset File Name", traffic: ["creativeFile", "creativeLink"], meta: ["imageFile"], type: "filename" },
-    { id: "body", label: "Body (Primary text)", traffic: ["bodyPrimary"], meta: ["body"], type: "text" },
-    { id: "headline", label: "Copy (Headline)", traffic: ["headline"], meta: ["title"], type: "text" },
-    { id: "description", label: "Copy (Description)", traffic: ["description"], meta: ["linkDescription"], type: "text" },
+    { id: "body", label: "Body (Primary text)", traffic: ["bodyPrimary"], meta: ["body"], type: "adCopyText" },
+    { id: "headline", label: "Copy (Headline)", traffic: ["headline"], meta: ["title"], type: "adCopyText" },
+    { id: "description", label: "Copy (Description)", traffic: ["description"], meta: ["linkDescription"], type: "adCopyText" },
     { id: "cta", label: "Call to Action", traffic: ["cta"], meta: ["cta"], type: "cta" },
     { id: "url", label: "Destination URL", traffic: ["baseUrl"], meta: ["link"], type: "url" },
     { id: "utm", label: "UTM / URL Tags", traffic: ["utm"], meta: ["urlTags"], type: "utm" },
     { id: "optimizeText", label: "Optimize text per person", traffic: ["optimizeText"], meta: ["optimizeText"], type: "offState" },
-    { id: "degreesFreedom", label: "Degrees of Freedom Type", traffic: ["degreesFreedom"], meta: ["degreesFreedom"], type: "offState" },
-    { id: "launchDate", label: "Launch Date", traffic: ["launchDate"], meta: ["ad"], type: "dateInAdName" },
-    { id: "language", label: "Language / Locales", traffic: ["ad"], meta: ["locales"], type: "localeInAdName" }
+    { id: "degreesFreedom", label: "Degrees of Freedom Type", traffic: ["degreesFreedom"], meta: ["degreesFreedom"], type: "offState" }
   ];
 
   let currentAnalysis = null;
+  let isCompactView = false;
+
+  function hasCopyOf(value) {
+    if (value === null || value === undefined) return false;
+    return /^(copy\s+of\s+)+/i.test(String(value).trim());
+  }
+
+  function stripCopyOf(value) {
+    if (value === null || value === undefined) return "";
+    let text = String(value).trim().replace(/^(copy\s+of\s+)+/i, "");
+    return normalizeWhitespace(text).toLowerCase();
+  }
+
+  function normalizeAdCopyText(value) {
+    if (value === null || value === undefined) return "";
+    let text = String(value).replace(/[\[\]]/g, "").trim();
+    return normalizeWhitespace(text);
+  }
 
   function jaroWinkler(s1, s2) {
     if (s1 === s2) return 1;
@@ -155,7 +172,7 @@
       }
     }
     if (bestIndex < 0 || bestScore < 8) {
-      throw new Error("Could not find a header row containing Campaign Name, Ad Set Name, or Ad Name.");
+      throw new Error("Could not find a header row containing Campaign Name, Ad Set Name, and Ad Name.");
     }
     return bestIndex;
   }
@@ -179,7 +196,7 @@
       }
     });
     if (!best || best.headerIndex < 0) {
-      throw new Error("No worksheet in the uploaded file has the required headers.");
+      throw new Error("No worksheet in the uploaded file has the required Meta headers.");
     }
     best.range = XLSX.utils.decode_range(best.worksheet["!ref"]);
     return best;
@@ -264,23 +281,6 @@
     return normalizeWhitespace(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
   }
 
-  function normalizeCountry(value) {
-    return normalizeWhitespace(value)
-      .split(/[,;|\n]+/)
-      .map(function (item) { return item.trim().toUpperCase(); })
-      .filter(Boolean)
-      .sort()
-      .join("|");
-  }
-
-  function filenameFrom(value) {
-    const text = normalizeWhitespace(value);
-    if (!text) return "";
-    let clean = text.split(/[?#]/)[0].replace(/\\/g, "/");
-    try { clean = decodeURIComponent(clean); } catch (e) {}
-    return clean.split("/").pop().trim().toLowerCase();
-  }
-
   function normalizeUrl(value) {
     const text = normalizeWhitespace(value);
     if (!text) return "";
@@ -294,70 +294,14 @@
     }
   }
 
-  function normalizeUtm(value) {
-    let text = normalizeWhitespace(value).replace(/^[?#]/, "");
-    if (!text) return "";
-    if (/^https?:\/\//i.test(text)) {
-      try { text = new URL(text).search.replace(/^\?/, ""); } catch (e) {}
-    }
-    try {
-      return Array.from(new URLSearchParams(text).entries())
-        .map(function (entry) { return [entry[0].toLowerCase(), entry[1]]; })
-        .sort(function (a, b) { return (a[0] + "=" + a[1]).localeCompare(b[0] + "=" + b[1]); })
-        .map(function (entry) { return entry[0] + "=" + entry[1]; })
-        .join("&");
-    } catch (e) {
-      return text;
-    }
-  }
-
-  function extractDates(value) {
-    const text = normalizeWhitespace(value);
-    if (!text) return [];
-    const found = new Set();
-    let match;
-
-    const isoPattern = /(?:^|\D)((?:19|20)\d{2})[-_. /](0?[1-9]|1[0-2])[-_. /](0?[1-9]|[12]\d|3[01])(?:\D|$)/g;
-    while ((match = isoPattern.exec(text)) !== null) {
-      found.add(pad2(match[2]) + "-" + pad2(match[3]));
-    }
-
-    const mdyPattern = /(?:^|\D)(0?[1-9]|1[0-2])[-_. /](0?[1-9]|[12]\d|3[01])(?:[-_. /]\d{2,4})?(?:\D|$)/g;
-    while ((match = mdyPattern.exec(text)) !== null) {
-      found.add(pad2(match[1]) + "-" + pad2(match[2]));
-    }
-
-    const compactPattern = /(?:^|\D)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?:\d{2}|\d{4})?(?:\D|$)/g;
-    while ((match = compactPattern.exec(text)) !== null) {
-      found.add(match[1] + "-" + match[2]);
-    }
-
-    return Array.from(found);
-  }
-
-  function pad2(value) { return String(value).padStart(2, "0"); }
-
-  function extractLanguageCode(adName) {
-    const text = normalizeWhitespace(adName).toUpperCase();
-    const match = text.match(/(?:^|[^A-Z])([A-Z]{2})(?:[^A-Z]|$)/);
-    return match ? match[1] : "";
-  }
-
-  function normalizeLocale(localeValue) {
-    const text = normalizeWhitespace(localeValue).toUpperCase();
-    if (!text) return "";
-    const match = text.match(/([A-Z]{2})/);
-    return match ? match[1] : text;
-  }
-
   function isStatusMatch(trafficStatus, metaStatus) {
     const tNorm = normalizeWhitespace(trafficStatus).toLowerCase();
     const mNorm = normalizeWhitespace(metaStatus).toLowerCase();
 
-    if (tNorm === "live") {
-      return mNorm === "active";
+    if (tNorm === "live" || tNorm === "on") {
+      return mNorm === "active" || mNorm === "on";
     } else {
-      return mNorm === "paused" || mNorm === "pause" || OFF_VALUES.has(mNorm);
+      return mNorm === "paused" || mNorm === "pause" || mNorm === "off" || OFF_VALUES.has(mNorm);
     }
   }
 
@@ -367,30 +311,11 @@
       return true;
     }
 
-    if (type === "statusMapping") {
-      return isStatusMatch(trafficValue, metaValue);
-    }
-
-    if (type === "localeInAdName") {
-      const langCode = extractLanguageCode(trafficValue);
-      const metaLocale = normalizeLocale(metaValue);
-      if (!langCode || !metaLocale) return true;
-      return langCode === metaLocale;
-    }
-
-    if (type === "dateInAdName") {
-      const trafficDates = extractDates(trafficValue);
-      const metaDates = extractDates(metaValue);
-      if (!trafficDates.length || !metaDates.length) return true;
-      return trafficDates.some(function (tDate) { return metaDates.includes(tDate); });
-    }
-
+    if (type === "statusMapping") return isStatusMatch(trafficValue, metaValue);
     if (type === "offState") return normalizeOffState(trafficValue) === normalizeOffState(metaValue);
     if (type === "cta") return normalizeCta(trafficValue) === normalizeCta(metaValue);
-    if (type === "country") return normalizeCountry(trafficValue) === normalizeCountry(metaValue);
-    if (type === "filename") return filenameFrom(trafficValue) === filenameFrom(metaValue);
     if (type === "url") return normalizeUrl(trafficValue) === normalizeUrl(metaValue);
-    if (type === "utm") return normalizeUtm(trafficValue) === normalizeUtm(metaValue);
+    if (type === "adCopyText") return normalizeAdCopyText(trafficValue) === normalizeAdCopyText(metaValue);
 
     return normalizeWhitespace(trafficValue) === normalizeWhitespace(metaValue);
   }
@@ -408,25 +333,72 @@
     return displayValue(firstMeaningfulValue(row, columnMap[key] || []));
   }
 
+  function splitAdGroups(value) {
+    if (value === null || value === undefined) return [EMPTY_LABEL];
+    const text = String(value).trim();
+    if (!text) return [EMPTY_LABEL];
+    const parts = text.split(/[\r\n|;]+/).map(p => p.trim()).filter(Boolean);
+    return parts.length ? parts : [EMPTY_LABEL];
+  }
+
   function buildRecords(sheetData, columnMap) {
     const records = [];
     for (let rowIndex = sheetData.headerIndex + 1; rowIndex < sheetData.rows.length; rowIndex += 1) {
       const row = sheetData.rows[rowIndex];
       if (!row || isRowEmpty(row)) continue;
       const campaign = recordName(row, columnMap, "campaign");
-      const adSet = recordName(row, columnMap, "adSet");
+      const adSetRaw = firstMeaningfulValue(row, columnMap["adSet"] || []);
       const ad = recordName(row, columnMap, "ad");
-      if (campaign === EMPTY_LABEL && adSet === EMPTY_LABEL && ad === EMPTY_LABEL) continue;
-      records.push({
-        row: row,
-        arrayRowIndex: rowIndex,
-        sourceRow0: sheetData.range.s.r + rowIndex,
-        campaign: campaign,
-        adSet: adSet,
-        ad: ad
+      if (campaign === EMPTY_LABEL && adSetRaw === "" && ad === EMPTY_LABEL) continue;
+
+      const adSets = splitAdGroups(adSetRaw);
+      adSets.forEach(function (adSetSingle) {
+        records.push({
+          row: row,
+          arrayRowIndex: rowIndex,
+          sourceRow0: sheetData.range.s.r + rowIndex,
+          campaign: campaign,
+          adSet: displayValue(adSetSingle),
+          ad: ad
+        });
       });
     }
     return records;
+  }
+
+  function findBestMetaMatch(trafficRecord, metaRecords, matchedMetaIndices) {
+    const tAdRaw = normalizeWhitespace(trafficRecord.ad).toLowerCase();
+    const tAdStripped = stripCopyOf(trafficRecord.ad);
+    const tSet = normalizeKeyPart(trafficRecord.adSet);
+
+    // Pass 1: Exact Ad Name & Exact Ad Set Name
+    for (let idx = 0; idx < metaRecords.length; idx++) {
+      if (matchedMetaIndices.has(idx)) continue;
+      const m = metaRecords[idx];
+      const mAdRaw = normalizeWhitespace(m.ad).toLowerCase();
+      const mAdStripped = stripCopyOf(m.ad);
+      const mSet = normalizeKeyPart(m.adSet);
+
+      if ((tAdRaw === mAdRaw || tAdStripped === mAdStripped) && tSet === mSet) {
+        return { match: m, index: idx };
+      }
+    }
+
+    // Pass 2: Contained Ad Set Name
+    for (let idx = 0; idx < metaRecords.length; idx++) {
+      if (matchedMetaIndices.has(idx)) continue;
+      const m = metaRecords[idx];
+      const mAdRaw = normalizeWhitespace(m.ad).toLowerCase();
+      const mAdStripped = stripCopyOf(m.ad);
+      const mSet = normalizeKeyPart(m.adSet);
+
+      if ((tAdRaw === mAdRaw || tAdStripped === mAdStripped) && 
+          (tSet.includes(mSet) || mSet.includes(tSet) || jaroWinkler(tSet, mSet) >= 0.88)) {
+        return { match: m, index: idx };
+      }
+    }
+
+    return { match: null, index: -1 };
   }
 
   function compareSheets(trafficData, metaData) {
@@ -434,7 +406,7 @@
     const metaColumns = createColumnMap(metaData.rows[metaData.headerIndex]);
     const trafficRecords = buildRecords(trafficData, trafficColumns);
     const metaRecords = buildRecords(metaData, metaColumns);
-    const matchedMetaRecords = new Set();
+    const matchedMetaIndices = new Set();
     const notices = [];
 
     const resolvedFields = FIELD_DEFINITIONS.map(function (field) {
@@ -450,40 +422,43 @@
 
     const flagged = [];
 
-    // Complete, unblocked row-by-row iteration across the entire spreadsheet
     trafficRecords.forEach(function (trafficRecord) {
-      let bestMatch = null;
-      let highestScore = 0;
-
-      metaRecords.forEach(function (metaRecord) {
-        let campaignScore = jaroWinkler(normalizeKeyPart(trafficRecord.campaign), normalizeKeyPart(metaRecord.campaign));
-        let adSetScore = jaroWinkler(normalizeKeyPart(trafficRecord.adSet), normalizeKeyPart(metaRecord.adSet));
-        let adScore = jaroWinkler(normalizeKeyPart(trafficRecord.ad), normalizeKeyPart(metaRecord.ad));
-
-        // Direct matching priority on Ad Name and Context
-        let totalScore = (campaignScore * 0.20) + (adSetScore * 0.20) + (adScore * 0.60);
-
-        if (totalScore > highestScore) {
-          highestScore = totalScore;
-          bestMatch = metaRecord;
-        }
-      });
+      const matchResult = findBestMetaMatch(trafficRecord, metaRecords, matchedMetaIndices);
+      const bestMatch = matchResult.match;
 
       const issues = [];
       const highlightColumns = new Set();
 
-      if (!bestMatch || highestScore < 0.55) {
+      if (!bestMatch) {
         issues.push({ field: "Record match", traffic: "Present", meta: "Ad not found in Meta export" });
         ["campaign", "adSet", "ad"].forEach(function (key) {
           indicesForKeys(trafficColumns, [key]).forEach(function (column) { highlightColumns.add(column); });
         });
       } else {
-        matchedMetaRecords.add(bestMatch);
-        resolvedFields.forEach(function (field) {
-          if (!field.trafficIndices.length) return;
-          const trafficValue = firstMeaningfulValue(trafficRecord.row, field.trafficIndices);
+        if (matchResult.index >= 0) {
+          matchedMetaIndices.add(matchResult.index);
+        }
 
-          if (!field.metaIndices.length) {
+        resolvedFields.forEach(function (field) {
+          if (!field.trafficIndices.length && field.id !== "adSet" && field.id !== "campaign" && field.id !== "ad") return;
+
+          let trafficValue, metaValue;
+
+          if (field.id === "adSet") {
+            trafficValue = trafficRecord.adSet;
+            metaValue = bestMatch.adSet || firstMeaningfulValue(bestMatch.row, field.metaIndices);
+          } else if (field.id === "campaign") {
+            trafficValue = trafficRecord.campaign;
+            metaValue = bestMatch.campaign || firstMeaningfulValue(bestMatch.row, field.metaIndices);
+          } else if (field.id === "ad") {
+            trafficValue = trafficRecord.ad;
+            metaValue = bestMatch.ad || firstMeaningfulValue(bestMatch.row, field.metaIndices);
+          } else {
+            trafficValue = firstMeaningfulValue(trafficRecord.row, field.trafficIndices);
+            metaValue = firstMeaningfulValue(bestMatch.row, field.metaIndices);
+          }
+
+          if (!field.metaIndices.length && field.id !== "adSet" && field.id !== "campaign" && field.id !== "ad") {
             const trafficIsOff = OFF_VALUES.has(normalizeWhitespace(trafficValue).toLowerCase());
             if (!trafficIsOff) {
               issues.push({ field: field.label, traffic: displayValue(trafficValue), meta: "(column not found)" });
@@ -492,7 +467,6 @@
             return;
           }
 
-          const metaValue = firstMeaningfulValue(bestMatch.row, field.metaIndices);
           if (!valuesMatch(field.type, trafficValue, metaValue)) {
             issues.push({ field: field.label, traffic: displayValue(trafficValue), meta: displayValue(metaValue) });
             meaningfulIndices(trafficRecord.row, field.trafficIndices).forEach(function (column) { highlightColumns.add(column); });
@@ -512,7 +486,7 @@
       }
     });
 
-    const metaOnly = metaRecords.filter(function (record) { return !matchedMetaRecords.has(record); });
+    const metaOnly = metaRecords.filter(function (record, idx) { return !matchedMetaIndices.has(idx); });
     metaOnly.forEach(function (record) {
       flagged.push({
         record: null,
@@ -528,8 +502,10 @@
     return {
       trafficData: trafficData,
       trafficColumns: trafficColumns,
+      metaColumns: metaColumns,
       trafficRecords: trafficRecords,
       metaRecords: metaRecords,
+      resolvedFields: resolvedFields,
       flagged: flagged,
       reportRows: flagged.filter(function (item) { return Boolean(item.record); }),
       metaOnlyCount: metaOnly.length,
@@ -595,12 +571,57 @@
     resultsList.replaceChildren();
     const issueCount = issueTotal(analysis.flagged);
 
+    // Total evaluated checks calculation
+    let totalEvaluatedChecks = 0;
+    analysis.trafficRecords.forEach(function (record) {
+      let bestMatch = null;
+      let highestScore = 0;
+
+      analysis.metaRecords.forEach(function (metaRecord) {
+        let cScore = jaroWinkler(normalizeKeyPart(record.campaign), normalizeKeyPart(metaRecord.campaign));
+        let gScore = jaroWinkler(normalizeKeyPart(record.adSet), normalizeKeyPart(metaRecord.adSet));
+        let aScore = jaroWinkler(stripCopyOf(record.ad), stripCopyOf(metaRecord.ad));
+        let score = (cScore * 0.20) + (gScore * 0.20) + (aScore * 0.60);
+        if (score > highestScore) {
+          highestScore = score;
+          bestMatch = metaRecord;
+        }
+      });
+
+      analysis.resolvedFields.forEach(function (field) {
+        if (!field.trafficIndices.length) return;
+        totalEvaluatedChecks += 1;
+      });
+    });
+
+    let scorePct = 100;
+    if (totalEvaluatedChecks > 0) {
+      scorePct = Math.max(0, Math.round(((totalEvaluatedChecks - issueCount) / totalEvaluatedChecks) * 100));
+    }
+
+    // Top-Right Score Circle Badge Setup
+    const scoreCircle = document.getElementById("scoreCircle");
+    const scoreValueEl = document.getElementById("scoreValue");
+    const scoreIconEl = document.getElementById("scoreIcon");
+    const scoreLabelEl = document.getElementById("scoreLabel");
+
+    if (scoreCircle && scoreValueEl && scoreIconEl) {
+      if (scorePct === 100 && issueCount === 0) {
+        scoreCircle.className = "score-circle is-100";
+        scoreValueEl.textContent = "100%";
+        scoreIconEl.innerHTML = '<i data-lucide="check-circle-2" aria-hidden="true"></i>';
+        if (scoreLabelEl) scoreLabelEl.textContent = "QA PASSED";
+      } else {
+        scoreCircle.className = "score-circle is-lower";
+        scoreValueEl.textContent = scorePct + "%";
+        scoreIconEl.innerHTML = '<i data-lucide="x-circle" aria-hidden="true"></i>';
+        if (scoreLabelEl) scoreLabelEl.textContent = issueCount + (issueCount === 1 ? " ISSUE" : " ISSUES");
+      }
+    }
+
     document.getElementById("adsChecked").textContent = String(analysis.trafficRecords.length);
     document.getElementById("adsFlagged").textContent = String(analysis.flagged.length);
     document.getElementById("issueCount").textContent = String(issueCount);
-    document.getElementById("resultsSubtitle").textContent = analysis.flagged.length
-      ? "Discrepancies are grouped by campaign, ad set, and ad. Meta values are shown as delivered."
-      : "Every comparable ad-level value matches the Meta export.";
 
     const notice = document.getElementById("analysisNotice");
     const noticeParts = analysis.notices.slice();
@@ -611,7 +632,7 @@
     if (!analysis.flagged.length) {
       const empty = el("div", "empty-state");
       empty.appendChild(el("h2", "", "No discrepancies detected"));
-      empty.appendChild(el("p", "", "The compared records passed all available QA checks."));
+      empty.appendChild(el("p", "", "The compared records passed all Meta QA checks."));
       resultsList.appendChild(empty);
     } else {
       const campaigns = groupFlaggedRows(analysis.flagged);
@@ -621,7 +642,7 @@
         const campaignBody = el("div", "group-body");
 
         adSets.forEach(function (ads, adSetName) {
-          const adSetGroup = detailsGroup("adset-group", adSetName, issueTotal(ads));
+          const adSetGroup = detailsGroup("adgroup-group", adSetName, issueTotal(ads));
           const adSetBody = el("div", "group-body");
 
           ads.forEach(function (adItem) {
@@ -639,6 +660,28 @@
         campaignGroup.appendChild(campaignBody);
         resultsList.appendChild(campaignGroup);
       });
+    }
+
+    if (window.lucide && typeof window.lucide.createIcons === "function") {
+      try { window.lucide.createIcons(); } catch (e) {}
+    }
+  }
+
+  function toggleDetailsView() {
+    const resultsList = document.getElementById("resultsList");
+    const toggleBtnText = document.getElementById("toggleDetailsText");
+    const toggleBtnIcon = document.querySelector("#toggleDetailsBtn i");
+
+    isCompactView = !isCompactView;
+
+    if (isCompactView) {
+      resultsList.classList.add("compact-mode");
+      if (toggleBtnText) toggleBtnText.textContent = "Expand";
+      if (toggleBtnIcon) toggleBtnIcon.setAttribute("data-lucide", "maximize-2");
+    } else {
+      resultsList.classList.remove("compact-mode");
+      if (toggleBtnText) toggleBtnText.textContent = "Compact";
+      if (toggleBtnIcon) toggleBtnIcon.setAttribute("data-lucide", "minimize-2");
     }
 
     if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -684,7 +727,7 @@
     const sourceHeaderRow0 = analysis.trafficData.range.s.r + analysis.trafficData.headerIndex;
 
     const headerStyle = {
-      fill: { patternType: "solid", fgColor: { rgb: "C55A11" } },
+      fill: { patternType: "solid", fgColor: { rgb: "1877F2" } },
       font: { bold: true, color: { rgb: "FFFFFF" } },
       alignment: { horizontal: "center", vertical: "center", wrapText: true }
     };
@@ -718,7 +761,7 @@
     if (source["!cols"]) reportSheet["!cols"] = cloneObject(source["!cols"]);
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, reportSheet, "QA Discrepancies");
+    XLSX.utils.book_append_sheet(workbook, reportSheet, "Meta QA Discrepancies");
     return workbook;
   }
 
@@ -727,7 +770,7 @@
       if (!currentAnalysis) throw new Error("Run an analysis before downloading the report.");
       if (typeof XLSX === "undefined") throw new Error("The Excel library did not load.");
       const workbook = buildReportWorkbook(currentAnalysis);
-      XLSX.writeFile(workbook, "Report_QA.xlsx", { compression: true, cellStyles: true });
+      XLSX.writeFile(workbook, "Report_QA_Meta.xlsx", { compression: true, cellStyles: true });
     } catch (error) {
       window.alert("Download failed: " + (error && error.message ? error.message : "Unknown error"));
     }
@@ -747,25 +790,29 @@
     }, 320);
   }
 
-  function setFileLabel(input, label) {
-    const file = input.files && input.files[0];
-    label.textContent = file ? file.name : "No file selected";
-    label.classList.toggle("has-file", Boolean(file));
-    label.title = file ? file.name : "";
-  }
-
   function restart() {
     const mainView = document.getElementById("mainView");
     const resultsView = document.getElementById("resultsView");
-    document.getElementById("trafficFile").value = "";
-    document.getElementById("metaFile").value = "";
-    document.getElementById("trafficFileName").textContent = "No file selected";
-    document.getElementById("metaFileName").textContent = "No file selected";
-    document.getElementById("trafficFileName").classList.remove("has-file");
-    document.getElementById("metaFileName").classList.remove("has-file");
+    
+    const trafficInput = document.getElementById("trafficFile");
+    const metaInput = document.getElementById("metaFile");
+    const trafficLabel = document.getElementById("trafficFileName");
+    const metaLabel = document.getElementById("metaFileName");
+    
+    if (trafficInput) trafficInput.value = "";
+    if (metaInput) metaInput.value = "";
+    
+    window.setFileLabel(trafficInput, trafficLabel);
+    window.setFileLabel(metaInput, metaLabel);
+    
     document.getElementById("progressRegion").hidden = true;
     document.getElementById("analyzeButton").disabled = false;
     currentAnalysis = null;
+    isCompactView = false;
+    
+    const resultsList = document.getElementById("resultsList");
+    if (resultsList) resultsList.classList.remove("compact-mode");
+
     switchView(resultsView, mainView);
   }
 
@@ -814,12 +861,27 @@
     const trafficLabel = document.getElementById("trafficFileName");
     const metaLabel = document.getElementById("metaFileName");
 
-    if (trafficInput) trafficInput.addEventListener("change", function () { setFileLabel(trafficInput, trafficLabel); });
-    if (metaInput) metaInput.addEventListener("change", function () { setFileLabel(metaInput, metaLabel); });
+    function bindFileInput(input, label) {
+      if (!input || !label) return;
+      ["change", "input"].forEach(function (eventType) {
+        input.addEventListener(eventType, function () {
+          window.setFileLabel(input, label);
+        });
+      });
+      input.addEventListener("click", function () {
+        this.value = "";
+      });
+    }
+
+    bindFileInput(trafficInput, trafficLabel);
+    bindFileInput(metaInput, metaLabel);
     
     const btnAnalyze = document.getElementById("analyzeButton");
     if (btnAnalyze) btnAnalyze.addEventListener("click", analyze);
     
+    const btnToggleDetails = document.getElementById("toggleDetailsBtn");
+    if (btnToggleDetails) btnToggleDetails.addEventListener("click", toggleDetailsView);
+
     const btnDownload = document.getElementById("downloadButton");
     if (btnDownload) btnDownload.addEventListener("click", downloadReport);
     
