@@ -4,24 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Compare a trafficking sheet with a Meta Ads export and download a discrepancy report.">
-  <title>Meta QAer</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <title>Meta QAer by DEPT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   <script src="script.js" defer></script>
   <style>
     :root {
       color-scheme: dark;
-      --green: #00d26a;
-      --blue: #1877f2;
-      --white: #f7fbff;
-      --muted: #9fb0c4;
-      --panel: rgba(2, 8, 19, 0.54);
+      --meta-blue: #1877f2;
+      --white: #ffffff;
+      --muted: #94a3b8;
+      --panel: rgba(8, 14, 28, 0.75);
       --line: rgba(255, 255, 255, 0.15);
-      --danger-bg: rgba(255, 91, 111, 0.12);
-      --danger-line: rgba(255, 124, 139, 0.35);
-      --danger: #ff9ca8;
-      --success: #62e9a6;
+      --danger-bg: rgba(255, 0, 80, 0.12);
+      --danger-line: rgba(255, 0, 80, 0.4);
+      --danger: #ff7a98;
+      --success: #00d26a;
+      --font-family: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     * { box-sizing: border-box; }
@@ -33,10 +35,13 @@
       min-height: 100vh;
       margin: 0;
       overflow-x: hidden;
-      background: linear-gradient(135deg, #020208 0%, #08101a 40%, #0d3882 100%);
+      background: 
+        radial-gradient(circle at 80% 20%, rgba(24, 119, 242, 0.28) 0%, transparent 45%),
+        radial-gradient(circle at 20% 80%, rgba(15, 23, 42, 0.8) 0%, transparent 50%),
+        linear-gradient(135deg, #020612 0%, #080e1e 50%, #0f172a 100%);
       background-attachment: fixed;
       color: var(--white);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: var(--font-family);
       letter-spacing: 0;
     }
 
@@ -45,7 +50,7 @@
     button:focus-visible,
     label:focus-within,
     summary:focus-visible {
-      outline: 3px solid rgba(130, 200, 255, 0.7);
+      outline: 3px solid rgba(24, 119, 242, 0.85);
       outline-offset: 4px;
     }
 
@@ -53,30 +58,57 @@
       width: min(1080px, calc(100% - 40px));
       min-height: 100vh;
       margin: 0 auto;
-      padding: 34px 0 48px;
+      padding: 16px 0 48px;
     }
 
+    /* Centered Header Positioned Lower Down */
     .brand {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      min-height: 52px;
+      gap: 14px;
+      margin-top: clamp(48px, 9vh, 80px);
+      margin-bottom: 36px;
+      text-align: center;
     }
 
-    .brand-logo {
+    .brand-logo-img {
       display: block;
-      width: 56px;
-      height: 38px;
+      height: 48px;
+      width: auto;
       object-fit: contain;
+      filter: drop-shadow(0 4px 14px rgba(24, 119, 242, 0.35));
     }
 
     .brand-title {
       margin: 0;
-      font-size: clamp(1.35rem, 3vw, 1.8rem);
-      font-weight: 800;
+      font-size: clamp(2.2rem, 5.5vw, 3.4rem);
       line-height: 1;
-      letter-spacing: 0;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .brand-title-main {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .brand-title-accent {
+      color: var(--meta-blue);
+      font-weight: 700;
+    }
+
+    .brand-title-dept {
+      font-weight: 100;
+      font-size: 0.38em;
+      color: rgba(255, 255, 255, 0.72);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-left: 4px;
     }
 
     main { position: relative; }
@@ -103,8 +135,8 @@
     .main-view {
       display: grid;
       place-items: center;
-      min-height: calc(100vh - 134px);
-      padding: 48px 0 88px;
+      min-height: calc(100vh - 260px);
+      padding: 12px 0 60px;
     }
 
     .upload-stage {
@@ -119,7 +151,10 @@
       gap: 18px;
     }
 
-    .upload-slot { min-width: 0; }
+    .upload-slot {
+      position: relative;
+      min-width: 0;
+    }
 
     .file-input {
       position: absolute;
@@ -139,23 +174,22 @@
       width: 100%;
       min-height: 74px;
       padding: 16px 20px;
-      border: 1.5px solid currentColor;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.08);
+      border: 1.5px solid var(--meta-blue);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+      color: var(--meta-blue);
       font-size: 1rem;
-      font-weight: 720;
+      font-weight: 600;
       cursor: pointer;
       transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
     }
 
     .upload-button:hover {
-      background: rgba(255, 255, 255, 0.06);
-      box-shadow: 0 0 30px color-mix(in srgb, currentColor 17%, transparent);
+      background: rgba(24, 119, 242, 0.08);
+      box-shadow: 0 0 28px rgba(24, 119, 242, 0.3);
       transform: translateY(-2px);
     }
-
-    .upload-button.traffic { color: var(--green); }
-    .upload-button.meta { color: #6aa9ff; }
 
     .upload-button span { color: var(--white); }
 
@@ -165,31 +199,34 @@
       margin: 11px 4px 0;
       overflow: hidden;
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       line-height: 1.4;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .file-name.has-file { color: #dce9f7; }
+    .file-name.has-file {
+      color: var(--meta-blue);
+      font-weight: 600;
+    }
 
     .versus {
       display: grid;
       place-items: center;
       min-height: 74px;
-      color: rgba(255, 255, 255, 0.55);
-      font-size: 0.84rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.88rem;
       font-weight: 700;
       text-transform: uppercase;
     }
 
     .analyze-wrap {
       display: inline-block;
-      margin-top: 38px;
+      margin-top: 36px;
       padding: 1.5px;
-      border-radius: 8px;
-      background: linear-gradient(90deg, var(--green), var(--blue));
-      box-shadow: 0 12px 36px rgba(0, 75, 180, 0.2);
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--meta-blue), #00f2fe);
+      box-shadow: 0 10px 32px rgba(24, 119, 242, 0.3);
     }
 
     .analyze-button {
@@ -197,20 +234,20 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      min-width: 190px;
+      min-width: 195px;
       min-height: 52px;
       padding: 12px 28px;
       border: 0;
-      border-radius: 7px;
-      background: #07101a;
+      border-radius: 9px;
+      background: #080e1e;
       color: var(--white);
-      font-weight: 780;
+      font-weight: 700;
       cursor: pointer;
       transition: background 180ms ease, transform 180ms ease;
     }
 
     .analyze-button:hover:not(:disabled) {
-      background: #0a1724;
+      background: #0f182e;
       transform: translateY(-1px);
     }
 
@@ -239,7 +276,7 @@
       width: 15px;
       height: 15px;
       border: 2px solid rgba(255, 255, 255, 0.2);
-      border-top-color: var(--green);
+      border-top-color: var(--meta-blue);
       border-radius: 50%;
       animation: spin 720ms linear infinite;
     }
@@ -255,100 +292,159 @@
       width: 34%;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--green), var(--blue));
+      background: linear-gradient(90deg, var(--meta-blue), #00f2fe);
       animation: progress 1.25s ease-in-out infinite;
     }
 
-    .results-view { padding: 54px 0 36px; }
+    /* Results View Styling */
+    .results-view { padding: 24px 0 28px; }
 
     .results-header {
       display: flex;
-      align-items: end;
+      align-items: center;
       justify-content: space-between;
-      gap: 24px;
-      padding-bottom: 18px;
+      gap: 20px;
+      padding-bottom: 20px;
       border-bottom: 1px solid var(--line);
     }
 
+    .results-header-left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    /* Smaller RESULTS Title */
     .results-title {
       margin: 0;
-      font-size: clamp(2rem, 6vw, 4.2rem);
-      font-weight: 850;
-      line-height: 0.92;
-      letter-spacing: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      text-transform: uppercase;
     }
 
-    .results-subtitle {
-      max-width: 480px;
-      margin: 9px 0 0;
-      color: var(--muted);
-      font-size: 0.93rem;
-      line-height: 1.5;
-    }
-
+    /* Stats under RESULTS title */
     .summary-stats {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 20px;
-      margin: 0;
+      align-items: center;
+      gap: 22px;
+      margin-top: 2px;
     }
 
-    .stat { min-width: 72px; text-align: right; }
+    .stat { text-align: left; }
 
     .stat-value {
       display: block;
-      font-size: 1.5rem;
-      font-weight: 800;
+      font-size: 1.2rem;
+      font-weight: 700;
       line-height: 1;
     }
 
     .stat-label {
       display: block;
-      margin-top: 7px;
+      margin-top: 4px;
       color: var(--muted);
-      font-size: 0.72rem;
+      font-size: 0.64rem;
       text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    /* Accuracy Indicator (Top-Right) */
+    .score-circle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 88px;
+      height: 88px;
+      flex: 0 0 88px;
+      border-radius: 50%;
+      background: rgba(8, 14, 28, 0.9);
+      border: 3.5px solid var(--danger);
+      box-shadow: 0 0 22px rgba(255, 0, 80, 0.35);
+      transition: all 300ms ease;
+      text-align: center;
+      padding: 4px;
+    }
+
+    .score-circle.is-100 {
+      border-color: var(--success);
+      box-shadow: 0 0 22px rgba(0, 210, 106, 0.35);
+    }
+
+    .score-circle.is-100 .score-icon { color: var(--success); }
+    .score-circle.is-lower .score-icon { color: var(--danger); }
+
+    .score-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .score-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2.8;
+    }
+
+    .score-value {
+      font-size: 0.9rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .score-label {
+      font-size: 0.52rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 3px;
     }
 
     .notice {
-      margin: 22px 0 0;
-      padding: 13px 15px;
+      margin: 16px 0 0;
+      padding: 10px 12px;
       border: 1px solid rgba(255, 199, 78, 0.3);
       border-radius: 6px;
       background: rgba(255, 183, 41, 0.09);
       color: #ffe0a2;
-      font-size: 0.84rem;
-      line-height: 1.5;
+      font-size: 0.76rem;
+      line-height: 1.4;
     }
 
     .notice[hidden] { display: none; }
 
     .results-list {
       display: grid;
-      gap: 14px;
-      margin-top: 28px;
+      gap: 12px;
+      margin-top: 20px;
     }
 
+    /* Accordion Structures with Moderate Font Bolding */
     .campaign-group,
-    .adset-group,
+    .adgroup-group,
     .ad-group {
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
     }
 
-    .adset-group,
-    .ad-group { background: rgba(255, 255, 255, 0.025); }
+    .adgroup-group,
+    .ad-group { background: rgba(255, 255, 255, 0.03); }
 
     details > summary {
       display: flex;
       align-items: center;
       gap: 10px;
-      min-height: 50px;
-      padding: 13px 16px;
+      min-height: 42px;
+      padding: 9px 13px;
       cursor: pointer;
       list-style: none;
     }
@@ -356,9 +452,9 @@
     details > summary::-webkit-details-marker { display: none; }
 
     details > summary::before {
-      width: 8px;
-      height: 8px;
-      flex: 0 0 8px;
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
       border-right: 1.5px solid var(--muted);
       border-bottom: 1.5px solid var(--muted);
       content: "";
@@ -371,98 +467,107 @@
     .summary-name {
       min-width: 0;
       overflow-wrap: anywhere;
-      font-weight: 700;
+      font-size: 0.8rem;
+      font-weight: 500; /* Smaller and non-heavy font */
     }
 
     .summary-count {
       flex: 0 0 auto;
       margin-left: auto;
       color: var(--danger);
-      font-size: 0.78rem;
-      font-weight: 700;
+      font-size: 0.7rem;
+      font-weight: 600;
     }
 
     .group-body {
       display: grid;
-      gap: 10px;
-      padding: 0 14px 14px 38px;
+      gap: 8px;
+      padding: 0 12px 12px 30px;
     }
 
-    .adset-group .group-body { padding-left: 36px; }
+    .adgroup-group .group-body { padding-left: 28px; }
 
     .ad-group { border-color: var(--danger-line); }
 
     .mismatch-list {
       display: grid;
-      gap: 9px;
+      gap: 8px;
       margin: 0;
-      padding: 0 14px 15px 38px;
+      padding: 0 12px 12px 28px;
       list-style: none;
+      transition: opacity 180ms ease;
+    }
+
+    /* Compact / Collapse Mode Trigger */
+    .results-list.compact-mode .mismatch-list {
+      display: none !important;
     }
 
     .mismatch-item {
       display: grid;
-      grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1fr) 22px minmax(0, 1fr);
-      gap: 10px;
+      grid-template-columns: minmax(115px, 0.65fr) minmax(0, 1fr) 20px minmax(0, 1fr);
+      gap: 8px;
       align-items: center;
-      padding: 12px;
-      border-left: 2px solid #f27684;
+      padding: 10px;
+      border-left: 3px solid var(--danger);
       background: var(--danger-bg);
-      font-size: 0.82rem;
+      font-size: 0.75rem;
     }
 
-    .mismatch-field { color: #ffd6dc; font-weight: 750; }
+    .mismatch-field { color: #ffd6dc; font-weight: 600; font-size: 0.75rem; }
 
     .value-block { min-width: 0; }
 
     .value-source {
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       color: var(--muted);
-      font-size: 0.66rem;
-      font-weight: 750;
+      font-size: 0.6rem;
+      font-weight: 600;
       text-transform: uppercase;
     }
 
     .value-text {
       display: block;
+      font-size: 0.75rem;
       overflow-wrap: anywhere;
       white-space: pre-wrap;
     }
 
-    .value-arrow { color: rgba(255, 255, 255, 0.45); }
+    .value-arrow { color: rgba(255, 255, 255, 0.45); font-size: 0.75rem; }
 
     .empty-state {
-      padding: 72px 20px;
+      padding: 52px 20px;
       border-top: 1px solid var(--line);
       text-align: center;
     }
 
     .empty-state svg { color: var(--success); }
 
-    .empty-state h2 { margin: 18px 0 7px; font-size: 1.35rem; }
-    .empty-state p { margin: 0; color: var(--muted); }
+    .empty-state h2 { margin: 12px 0 5px; font-size: 1.1rem; }
+    .empty-state p { margin: 0; color: var(--muted); font-size: 0.78rem; }
 
     .actions {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      margin-top: 36px;
+      gap: 12px;
+      margin-top: 28px;
     }
 
     .action-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 9px;
-      min-height: 46px;
-      padding: 10px 24px;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 18px;
       border: 1px solid rgba(255, 255, 255, 0.88);
       border-radius: 7px;
       background: transparent;
       color: var(--white);
-      font-weight: 750;
+      font-size: 0.8rem;
+      font-weight: 600;
       cursor: pointer;
       transition: background 180ms ease, opacity 180ms ease, transform 180ms ease;
     }
@@ -475,11 +580,11 @@
     .action-button:disabled { cursor: not-allowed; opacity: 0.35; }
 
     .restart-button {
-      min-height: 38px;
-      padding: 8px 16px;
+      min-height: 34px;
+      padding: 6px 12px;
       border-color: rgba(255, 255, 255, 0.4);
       opacity: 0.72;
-      font-size: 0.84rem;
+      font-size: 0.76rem;
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -499,40 +604,40 @@
     }
 
     @media (max-width: 720px) {
-      .app-shell { width: min(100% - 28px, 1080px); padding-top: 24px; }
-      .main-view { padding-top: 38px; }
+      .app-shell { width: min(100% - 28px, 1080px); }
+      .brand { margin-top: 32px; }
       .upload-grid { grid-template-columns: 1fr; gap: 8px; }
       .versus { min-height: 30px; }
       .file-name { min-height: 22px; }
-      .results-view { padding-top: 40px; }
-      .results-header { align-items: flex-start; flex-direction: column; }
-      .summary-stats { justify-content: flex-start; }
-      .stat { text-align: left; }
-      .group-body, .adset-group .group-body { padding-left: 14px; }
-      .mismatch-list { padding-left: 14px; }
-      .mismatch-item { grid-template-columns: 1fr; gap: 12px; }
+      .results-view { padding-top: 20px; }
+      .results-header { align-items: flex-start; }
+      .group-body, .adgroup-group .group-body { padding-left: 12px; }
+      .mismatch-list { padding-left: 12px; }
+      .mismatch-item { grid-template-columns: 1fr; gap: 8px; }
       .value-arrow { display: none; }
     }
   </style>
 </head>
 <body>
   <div class="app-shell">
-    <header class="brand" aria-label="Meta QAer">
-      <img
-        class="brand-logo"
-        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 40'%3E%3Cpath d='M5 28C10 10 17 4 24 14l8 12 8-12c7-10 14-4 19 14M5 28c4 10 11 10 19-2l8-12 8 12c8 12 15 12 19 2' fill='none' stroke='%231877F2' stroke-width='5.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
-        alt="Meta"
-        width="56"
-        height="38"
-      >
-      <h1 class="brand-title">Meta QAer</h1>
+    
+    <!-- Centered Lower Brand Header -->
+    <header class="brand" aria-label="Meta QAer by DEPT">
+      <img class="brand-logo-img" src="https://static.freepnglogo.com/images/all_img/1723808808meta-logo-transparent-PNG.png" alt="Meta Logo">
+      <h1 class="brand-title">
+        <span class="brand-title-main">Meta</span>
+        <span class="brand-title-accent">QAer</span>
+        <span class="brand-title-dept">by DEPT</span>
+      </h1>
     </header>
 
     <main>
+      <!-- Upload Section -->
       <section id="mainView" class="view main-view" aria-labelledby="mainHeading">
         <div class="upload-stage">
-          <h2 id="mainHeading" hidden>Upload spreadsheets for comparison</h2>
+          <h2 id="mainHeading" hidden>Upload spreadsheets for Meta QA comparison</h2>
           <div class="upload-grid">
+            
             <div class="upload-slot">
               <input class="file-input" id="trafficFile" type="file" accept=".xlsx,.xls,.xlsm,.csv" aria-describedby="trafficFileName">
               <label class="upload-button traffic" for="trafficFile">
@@ -552,6 +657,7 @@
               </label>
               <span class="file-name" id="metaFileName">No file selected</span>
             </div>
+
           </div>
 
           <div class="analyze-wrap">
@@ -562,22 +668,31 @@
           </div>
 
           <div id="progressRegion" class="progress-region" role="status" aria-live="polite" hidden>
-            <div class="progress-label"><span class="spinner" aria-hidden="true"></span>Analyzing Data...</div>
+            <div class="progress-label"><span class="spinner" aria-hidden="true"></span>Analyzing Meta Data...</div>
             <div class="progress-track" aria-hidden="true"><div class="progress-fill"></div></div>
           </div>
         </div>
       </section>
 
+      <!-- Results View Section -->
       <section id="resultsView" class="view results-view" aria-labelledby="resultsHeading" hidden>
         <div class="results-header">
-          <div>
+          <div class="results-header-left">
             <h2 id="resultsHeading" class="results-title">RESULTS</h2>
-            <p id="resultsSubtitle" class="results-subtitle"></p>
+            <div class="summary-stats" aria-label="Analysis summary">
+              <div class="stat"><span id="adsChecked" class="stat-value">0</span><span class="stat-label">Ads checked</span></div>
+              <div class="stat"><span id="adsFlagged" class="stat-value">0</span><span class="stat-label">Ads flagged</span></div>
+              <div class="stat"><span id="issueCount" class="stat-value">0</span><span class="stat-label">Issues</span></div>
+            </div>
           </div>
-          <div class="summary-stats" aria-label="Analysis summary">
-            <div class="stat"><span id="adsChecked" class="stat-value">0</span><span class="stat-label">Ads checked</span></div>
-            <div class="stat"><span id="adsFlagged" class="stat-value">0</span><span class="stat-label">Ads flagged</span></div>
-            <div class="stat"><span id="issueCount" class="stat-value">0</span><span class="stat-label">Issues</span></div>
+
+          <!-- Top-Right Score Circle Widget -->
+          <div class="score-circle" id="scoreCircle">
+            <div class="score-icon" id="scoreIcon">
+              <i data-lucide="check-circle-2" aria-hidden="true"></i>
+            </div>
+            <div class="score-value" id="scoreValue">100%</div>
+            <div class="score-label" id="scoreLabel">QA PASSED</div>
           </div>
         </div>
 
@@ -585,6 +700,10 @@
         <div id="resultsList" class="results-list"></div>
 
         <div class="actions">
+          <button id="toggleDetailsBtn" class="action-button" type="button">
+            <i data-lucide="minimize-2" aria-hidden="true"></i>
+            <span id="toggleDetailsText">Compact</span>
+          </button>
           <button id="downloadButton" class="action-button" type="button">
             <i data-lucide="download" aria-hidden="true"></i>
             Download
