@@ -333,7 +333,7 @@ window.setFileLabel = function (input, label) {
     return displayValue(firstMeaningfulValue(row, columnMap[key] || []));
   }
 
-  // Splits multiple values in a single cell (e.g., campaigns or ad sets separated by newlines, pipes, or semicolons)
+  // Splits multiple values in a single cell (e.g. campaigns or ad sets separated by newlines, pipes, or semicolons)
   function splitMultiValues(value) {
     if (value === null || value === undefined) return [EMPTY_LABEL];
     const text = String(value).trim();
@@ -371,14 +371,14 @@ window.setFileLabel = function (input, label) {
     return records;
   }
 
-  // Multi-pass Ad Matching Engine (Strict Ad Set & Campaign Scope)
+  // Multi-pass Ad Matching Engine (Requires EXACT String Equality on Ad Set Name)
   function findBestMetaMatch(trafficRecord, metaRecords, matchedMetaIndices) {
     const tAdRaw = normalizeWhitespace(trafficRecord.ad).toLowerCase();
     const tAdStripped = stripCopyOf(trafficRecord.ad);
     const tSet = normalizeKeyPart(trafficRecord.adSet);
     const tCamp = normalizeKeyPart(trafficRecord.campaign);
 
-    // Pass 1: Exact Ad Name & Exact Ad Set Name & Exact Campaign Name
+    // Pass 1: Exact Ad Name & EXACT Ad Set Name & EXACT Campaign Name
     for (let idx = 0; idx < metaRecords.length; idx++) {
       if (matchedMetaIndices.has(idx)) continue;
       const m = metaRecords[idx];
@@ -393,7 +393,7 @@ window.setFileLabel = function (input, label) {
       }
     }
 
-    // Pass 2: Exact Ad Name & Exact Ad Set Name & Contained/Fuzzy Campaign Name
+    // Pass 2: Exact Ad Name & EXACT Ad Set Name & Contained/Similar Campaign Name
     for (let idx = 0; idx < metaRecords.length; idx++) {
       if (matchedMetaIndices.has(idx)) continue;
       const m = metaRecords[idx];
@@ -408,7 +408,7 @@ window.setFileLabel = function (input, label) {
       }
     }
 
-    // Pass 3: Exact Ad Name & Contained/Fuzzy Ad Set Name & Contained/Fuzzy Campaign Name
+    // Pass 3: Exact Ad Name & Similar Campaign & Contained Ad Set Name (Strict substring containment only, max length diff <= 15)
     for (let idx = 0; idx < metaRecords.length; idx++) {
       if (matchedMetaIndices.has(idx)) continue;
       const m = metaRecords[idx];
@@ -418,10 +418,10 @@ window.setFileLabel = function (input, label) {
       const mCamp = normalizeKeyPart(m.campaign);
 
       const adMatched = (tAdRaw === mAdRaw || tAdStripped === mAdStripped);
-      const setMatched = (tSet === mSet || tSet.includes(mSet) || mSet.includes(tSet) || jaroWinkler(tSet, mSet) >= 0.88);
       const campMatched = (tCamp === mCamp || tCamp.includes(mCamp) || mCamp.includes(tCamp) || jaroWinkler(tCamp, mCamp) >= 0.85);
+      const setContained = (tSet.includes(mSet) || mSet.includes(tSet)) && Math.abs(tSet.length - mSet.length) <= 15;
 
-      if (adMatched && setMatched && campMatched) {
+      if (adMatched && campMatched && setContained) {
         return { match: m, index: idx };
       }
     }
