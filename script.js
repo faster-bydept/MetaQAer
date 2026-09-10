@@ -599,24 +599,29 @@ window.setFileLabel = function (input, label) {
       scorePct = Math.max(0, Math.round(((totalEvaluatedChecks - issueCount) / totalEvaluatedChecks) * 100));
     }
 
-    // Top-Right Score Circle Badge Setup
     const scoreCircle = document.getElementById("scoreCircle");
     const scoreValueEl = document.getElementById("scoreValue");
     const scoreIconEl = document.getElementById("scoreIcon");
     const scoreLabelEl = document.getElementById("scoreLabel");
+    const successStage = document.getElementById("successStage");
+    const resultsControls = document.getElementById("resultsControls");
 
-    if (scoreCircle && scoreValueEl && scoreIconEl) {
-      if (scorePct === 100 && issueCount === 0) {
-        scoreCircle.className = "score-circle is-100";
-        scoreValueEl.textContent = "100%";
-        scoreIconEl.innerHTML = '<i data-lucide="check-circle-2" aria-hidden="true"></i>';
-        if (scoreLabelEl) scoreLabelEl.textContent = "QA PASSED";
-      } else {
+    if (scorePct === 100 && issueCount === 0) {
+      // 100% Accuracy Achieved Layout
+      if (scoreCircle) scoreCircle.hidden = true;
+      if (resultsControls) resultsControls.hidden = true;
+      if (successStage) successStage.hidden = false;
+    } else {
+      // Discrepancies Found Layout
+      if (successStage) successStage.hidden = true;
+      if (scoreCircle) {
+        scoreCircle.hidden = false;
         scoreCircle.className = "score-circle is-lower";
-        scoreValueEl.textContent = scorePct + "%";
-        scoreIconEl.innerHTML = '<i data-lucide="x-circle" aria-hidden="true"></i>';
+        if (scoreValueEl) scoreValueEl.textContent = scorePct + "%";
+        if (scoreIconEl) scoreIconEl.innerHTML = '<i data-lucide="x-circle" aria-hidden="true"></i>';
         if (scoreLabelEl) scoreLabelEl.textContent = issueCount + (issueCount === 1 ? " ISSUE" : " ISSUES");
       }
+      if (resultsControls) resultsControls.hidden = false;
     }
 
     document.getElementById("adsChecked").textContent = String(analysis.trafficRecords.length);
@@ -629,12 +634,7 @@ window.setFileLabel = function (input, label) {
     notice.hidden = noticeParts.length === 0;
     notice.textContent = noticeParts.join(" ");
 
-    if (!analysis.flagged.length) {
-      const empty = el("div", "empty-state");
-      empty.appendChild(el("h2", "", "No discrepancies detected"));
-      empty.appendChild(el("p", "", "The compared records passed all Meta QA checks."));
-      resultsList.appendChild(empty);
-    } else {
+    if (analysis.flagged.length > 0) {
       const campaigns = groupFlaggedRows(analysis.flagged);
       campaigns.forEach(function (adSets, campaignName) {
         const campaignItems = Array.from(adSets.values()).reduce(function (items, rows) { return items.concat(rows); }, []);
