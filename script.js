@@ -571,7 +571,7 @@ window.setFileLabel = function (input, label) {
     resultsList.replaceChildren();
     const issueCount = issueTotal(analysis.flagged);
 
-    // Total evaluated checks calculation
+    // Calculate accuracy percentage
     let totalEvaluatedChecks = 0;
     analysis.trafficRecords.forEach(function (record) {
       let bestMatch = null;
