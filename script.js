@@ -21,6 +21,39 @@ window.setFileLabel = function (input, label) {
     ad: ["ad name", "advertisement name"],
     buildStatus: ["build status", "ad status", "status"],
     metaStatus: ["ad status", "delivery info", "delivery status", "status"],
+    facebookIdentity: [
+      "facebook identity (link object id)",
+      "facebook identity link object id",
+      "facebook identity",
+      "fb identity",
+      "link object id",
+      "facebook page id",
+      "facebook account id"
+    ],
+    linkObjectId: [
+      "link object id",
+      "facebook identity (link object id)",
+      "facebook identity link object id",
+      "facebook identity",
+      "fb identity",
+      "facebook page id"
+    ],
+    igIdentity: [
+      "ig identity (instagram account id)",
+      "ig identity instagram account id",
+      "ig identity",
+      "instagram identity",
+      "instagram account id",
+      "ig account id"
+    ],
+    instagramAccountId: [
+      "instagram account id",
+      "ig identity (instagram account id)",
+      "ig identity instagram account id",
+      "ig identity",
+      "instagram identity",
+      "ig account id"
+    ],
     bodyPrimary: ["body primary text", "primary text", "body copy", "text"],
     body: ["body", "primary text", "text"],
     headline: ["copy headline", "headline", "title"],
@@ -38,12 +71,14 @@ window.setFileLabel = function (input, label) {
 
   const REQUIRED_HEADER_GROUPS = [HEADER_ALIASES.campaign, HEADER_ALIASES.adSet, HEADER_ALIASES.ad];
 
-  // Meta Field Definitions (Country/Location and Creative Asset File Name EXCLUDED)
+  // Meta Field Definitions (Facebook Identity and IG Identity mapped explicitly to Meta export columns)
   const FIELD_DEFINITIONS = [
     { id: "campaign", label: "Campaign Name", traffic: ["campaign"], meta: ["campaign"], type: "name" },
     { id: "adSet", label: "Ad Set Name", traffic: ["adSet"], meta: ["adSet"], type: "name" },
     { id: "ad", label: "Ad Name", traffic: ["ad"], meta: ["ad"], type: "name" },
     { id: "status", label: "Build Status / Ad Status", traffic: ["buildStatus"], meta: ["metaStatus"], type: "statusMapping" },
+    { id: "facebookIdentity", label: "Facebook Identity (Link Object ID)", traffic: ["facebookIdentity"], meta: ["linkObjectId"], type: "text" },
+    { id: "igIdentity", label: "IG Identity (Instagram Account ID)", traffic: ["igIdentity"], meta: ["instagramAccountId"], type: "text" },
     { id: "body", label: "Body (Primary text)", traffic: ["bodyPrimary"], meta: ["body"], type: "adCopyText" },
     { id: "headline", label: "Copy (Headline)", traffic: ["headline"], meta: ["title"], type: "adCopyText" },
     { id: "description", label: "Copy (Description)", traffic: ["description"], meta: ["linkDescription"], type: "adCopyText" },
@@ -119,7 +154,19 @@ window.setFileLabel = function (input, label) {
 
   function normalizeHeader(value) {
     const text = String(value == null ? "" : value).trim();
-    if (/\bid\b/i.test(text) && !/name/i.test(text)) return "__ignore_id__";
+    // Exclude generic "ID" columns while preserving Link Object ID, Instagram Account ID, and Identity columns
+    if (
+      /\bid\b/i.test(text) &&
+      !/name/i.test(text) &&
+      !/link object/i.test(text) &&
+      !/instagram account/i.test(text) &&
+      !/identity/i.test(text) &&
+      !/object id/i.test(text) &&
+      !/account id/i.test(text) &&
+      !/page id/i.test(text)
+    ) {
+      return "__ignore_id__";
+    }
     
     return text
       .normalize("NFKD")
@@ -333,7 +380,6 @@ window.setFileLabel = function (input, label) {
     return displayValue(firstMeaningfulValue(row, columnMap[key] || []));
   }
 
-  // Splits multiple values in a single cell (e.g. campaigns or ad sets separated by newlines, pipes, or semicolons)
   function splitMultiValues(value) {
     if (value === null || value === undefined) return [EMPTY_LABEL];
     const text = String(value).trim();
@@ -426,7 +472,6 @@ window.setFileLabel = function (input, label) {
       }
     }
 
-    // Strictly isolated - Do NOT cross-match an ad to a completely different Ad Set or Campaign
     return { match: null, index: -1 };
   }
 
